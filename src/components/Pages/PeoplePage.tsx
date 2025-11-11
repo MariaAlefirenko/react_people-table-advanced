@@ -115,7 +115,7 @@ export const PeoplePage: React.FC = () => {
               )}
 
               {!loading && hasData && !hasVisible && (
-                <p>Nothing matches your search or filters</p>
+                <p>There are no people matching the current search criteria</p>
               )}
 
               {!loading && !hasData && (
