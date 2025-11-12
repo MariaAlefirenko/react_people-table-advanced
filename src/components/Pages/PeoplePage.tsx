@@ -7,6 +7,10 @@ import { PeopleTable } from '../PeopleTable';
 import { getPeople } from '../../api';
 import type { Person } from '../../types/Person';
 
+
+type SortField = keyof Pick<Person, 'name' | 'sex' | 'born' | 'died'>;
+type SortOrder = 'asc' | 'desc';
+
 export const PeoplePage: React.FC = () => {
   const [people, setPeople] = useState<Person[]>([]);
   const [loading, setLoading] = useState(true);
@@ -15,9 +19,16 @@ export const PeoplePage: React.FC = () => {
 
   const query = (searchParams.get('query') || '').trim();
   const sex = searchParams.get('sex');
-  const sortBy = (searchParams.get('sort') as keyof Person) || null;
-  const sortOrder = (searchParams.get('order') as 'asc' | 'desc') || 'asc';
   const centuries = searchParams.getAll('centuries');
+
+  const sortByParam = searchParams.get('sort');
+  const orderParam = searchParams.get('order');
+
+  const sortBy: SortField | null = ['name', 'sex', 'born', 'died'].includes(sortByParam || '')
+    ? (sortByParam as SortField)
+    : null;
+
+  const sortOrder: SortOrder = orderParam === 'desc' ? 'desc' : 'asc';
 
   useEffect(() => {
     setLoading(true);
@@ -25,9 +36,15 @@ export const PeoplePage: React.FC = () => {
     let cancelled = false;
 
     getPeople()
-      .then(data => !cancelled && setPeople(data))
-      .catch(() => !cancelled && setError('Failed to fetch people'))
-      .finally(() => !cancelled && setLoading(false));
+      .then(data => {
+        if (!cancelled) setPeople(data);
+      })
+      .catch(() => {
+        if (!cancelled) setError('Something went wrong');
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
 
     return () => {
       cancelled = true;
@@ -60,7 +77,6 @@ export const PeoplePage: React.FC = () => {
 
       filtered = filtered.filter(p => {
         const bornCentury = p.born ? Math.ceil(p.born / 100) : null;
-
         return bornCentury != null && centurySet.has(bornCentury);
       });
     }
@@ -72,17 +88,9 @@ export const PeoplePage: React.FC = () => {
         const av = a[sortBy];
         const bv = b[sortBy];
 
-        if (av == null && bv == null) {
-          return 0;
-        }
-
-        if (av == null) {
-          return -1 * dir;
-        }
-
-        if (bv == null) {
-          return 1 * dir;
-        }
+        if (av == null && bv == null) return 0;
+        if (av == null) return -1 * dir;
+        if (bv == null) return 1 * dir;
 
         if (typeof av === 'number' && typeof bv === 'number') {
           return (av - bv) * dir;
@@ -101,6 +109,7 @@ export const PeoplePage: React.FC = () => {
   return (
     <>
       <h1 className="title">People Page</h1>
+
       <div className="block">
         <div className="columns is-desktop is-flex-direction-row-reverse">
           <div className="column is-7-tablet is-narrow-desktop">
@@ -110,18 +119,21 @@ export const PeoplePage: React.FC = () => {
           <div className="column">
             <div className="box table-container">
               {loading && <Loader />}
-              {error && (
-                <p data-cy="peopleLoadingError">Something went wrong</p>
-              )}
 
-              {!loading && hasData && !hasVisible && (
-                <p>There are no people matching the current search criteria</p>
+              {error && (
+                <p data-cy="peopleLoadingError" className="has-text-danger">
+                  {error}
+                </p>
               )}
 
               {!loading && !hasData && (
                 <p data-cy="noPeopleMessage">
                   There are no people on the server
                 </p>
+              )}
+
+              {hasData && !hasVisible && !loading && !error && (
+                <p>There are no people matching the current search criteria</p>
               )}
 
               {hasVisible && (
